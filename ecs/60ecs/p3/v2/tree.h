@@ -1,0 +1,52 @@
+#include <cstring>
+#include <iostream>
+#include <string>
+#include <cstdlib>
+#include <fstream>
+
+#pragma once
+
+using namespace std;
+
+
+class tNode{
+ public:
+
+  unsigned char key, smallest;
+  unsigned int freq;
+  bool side;
+  bool leaf;
+  string code;
+
+  tNode *l, *r, *p;
+  tNode(int, int);
+  tNode(tNode*, tNode*);
+  void print();
+  bool cmp(tNode*);
+  void findCode();
+  
+};
+
+class lNode{
+
+ public:
+  lNode *next;
+  tNode *data;
+  lNode(tNode*, lNode*);
+};
+
+class llist{
+
+ public:
+
+  lNode *head;
+  int size;
+
+  llist();
+  void push(tNode*);
+  void pop();
+  tNode* top();
+  void print();
+  void merge();
+
+};

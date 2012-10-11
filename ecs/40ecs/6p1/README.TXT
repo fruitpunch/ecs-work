@@ -1,0 +1,1 @@
+please comment on file.h and file.cpp, and linkedlist.h and linkedlist.cpp, there is no change in time, i added a variable t in permissions to tell whether its directory or file. new touch command in directory.cpp, and touch function in funix.cpp. be sure there is no word directory in linkedlist.cpp. be sure to check the permissions of stuff to see if it matches his code.

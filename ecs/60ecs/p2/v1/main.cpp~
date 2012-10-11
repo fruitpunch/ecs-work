@@ -1,0 +1,109 @@
+#include <iostream>
+#include "network.h"
+using namespace std;
+
+llist *holder;
+llist *valid;
+
+
+void printout(int count){
+
+  cout<<"<?xml version=\"1.2\"?>"<<endl;
+  cout<<"<country>"<<endl;
+
+  llist *print[count];
+
+  for(int i=0;i<count;i++){
+    print[i] = new llist();
+    valid->setList(print[i], i);
+  }
+
+  llist *key; 
+  int i;
+  for(int j=1;j<count;j++){
+    key=print[j];
+    for(i=j-1;(i>=0) && print[i]->llistCmp(key);i--){
+      print[i+1]=print[i];
+    }
+    print[i+1]=key;
+  }
+
+  for(i=count-1;i>=0;i--){
+    cout<<"<region>"<<endl;
+    print[i]->printList();
+  }
+  cout<<"</region>"<<endl;
+  cout<<"</country>"<<endl;
+
+}
+
+void solve(){
+
+  road *temp;
+
+  while(!holder->empty()){
+
+    temp=holder->top();
+    valid->getAdj(temp);
+    valid->resetVisit();
+
+
+    if(temp->checkCycle(temp->id)){
+      valid->insert(temp);
+    }
+    else{
+      temp->removeSelf();
+    }
+
+    holder->remove(-1);
+  }
+  valid->resetVisit();
+  int count=valid->setRegion();
+  printout(count);
+
+}
+
+int main(){
+
+  int vertex, edge;
+  char input[100];
+  road *in;
+  holder=new llist();
+  valid=new llist();
+
+  cin.getline(input, 100);
+  char* v=strtok(input, " \t");
+  if(!isdigit(*v))return 0;
+  vertex=atoi(v);
+
+  cin.getline(input, 100);
+  char* e=strtok(input, " \t");
+  if(!isdigit(*e))return 0;
+  edge=atoi(e);
+
+  int getAll[3*edge];
+  int i=0, c1, c2, d;
+  char *ptr;
+  while(cin.getline(input, 100) && i<edge*3){
+
+    ptr=strtok(input, " \t");
+    while(ptr){
+      if(!isdigit(*ptr))return 0;
+      getAll[i]=atoi(ptr);
+      ptr=strtok(NULL, " \t");
+      i++;
+    }
+  }
+  for(i=0;i<edge;i++){
+    c1=getAll[i*3], c2=getAll[i*3+1], d=getAll[i*3+2];
+    in=new road(c1, c2, d, i);
+    if(!holder->setCheck(in)) return 0;
+  }
+  solve();
+  return 0;
+}
+
+    
+
+    
+  

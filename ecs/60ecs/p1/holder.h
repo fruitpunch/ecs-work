@@ -1,0 +1,18 @@
+#include "cell.h"
+#pragma once
+using namespace std;
+class box{
+
+ public:
+  cell *subCell[9];
+  list<int> contain;
+  int missing[9];
+  int solved, total;
+  box(cell* in[9]);
+  void remove(int d=0);
+  void update();
+  void fill();
+  bool valid();
+
+};
+

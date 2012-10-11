@@ -1,0 +1,380 @@
+//Wen Xi Zhang && Hiu Hong Yu
+#include "directory.h"
+using namespace std;
+
+//constructor with one parameter
+//set default temp = NULL
+Directory :: Directory(char name1[80]) : temp(NULL)
+{
+  //Directory constructor
+  name = new char[80];
+  strcpy(name, name1);
+  subN = 0;
+}//end Directory()
+
+//overloading constructor for read in data from directory.txt
+//creating all the pervious directory that were created during last run
+//use recurrsion, set default temp = NULL
+Directory :: Directory(Directory &original) : temp(NULL)
+{
+  //overloading directory constructor
+  name = new char[80];// name = new name
+  mask = new Permissions();//new umask
+  time = new Time();// new time
+  strcpy(name, original.name);//set name
+  subN = original.subN;//set sub dir
+  (*mask).perm =(*original.mask).perm;//set mask value
+  previousDir = original.previousDir;// perviousDirectry = new directory
+  //scan for sub directory within the directory
+  subDir = original.subDir;
+}//end Directory(overloading constructor)
+
+//overloading constructor for currectory directory
+//creating root, set default temp to NULL
+Directory :: Directory(Directory* currentDir, char name1[80],
+                       char user[80]) : temp(NULL)
+{
+  mask = new Permissions();// new mask value
+  time = new Time();// time
+  name = new char[80];
+  if(currentDir == NULL)
+  {
+    currentDir = this;
+    strcpy(name, "/");
+    subN = 0;
+    return ;
+  }//end if
+
+  //creating new memory for directory and permission
+  strcpy((*mask).owner, user);
+  strcpy(name, name1);//copy the name from name1 to class variable
+  (*currentDir).subDir += this;
+  previousDir = currentDir;// set pervious directory to current
+  subN = 0;//number of subdirectory = 0
+  (*currentDir).subN++;//number of current directory + 1
+}//end Directory()
+
+//overloaded constructor for only allocating memory
+//set default temp to NULL
+Directory :: Directory() : temp(NULL)
+{ 
+  name = new char[80];
+  mask = new Permissions();
+  time = new Time(1, 2);
+  // subDir = new LinkedList();
+}//end Directory(default constructor)
+
+//use recursion
+Directory :: ~Directory()
+{
+  //delete memory that were created for sub directory
+  //delete the memory of name
+  if(name) 
+    delete[] name;
+  
+  if(mask) 
+    delete mask;
+  
+  if(time) 
+    delete time;
+}//end destructor ~Directory
+
+//overloading operator for print
+//use recurrsion
+ofstream& operator << (ofstream &out, Directory& dir)
+{
+  out << dir.name << " ";
+  out << dir.subN << " ";
+  out << (*dir.mask);
+  out << (*dir.time) <<" ";
+  out << endl;
+  for(int i = 0; i < dir.subN; i++)
+  {
+    out << (*dir.subDir[i]);
+  }//end for
+  return out;
+}//end << operator
+
+//overloading operator << scan in
+ifstream& operator >> (ifstream &in, Directory& dir)
+{
+  in >> dir.name;
+  in >> dir.subN;
+  in >> (*dir.mask);
+  in >> (*dir.time);
+  
+  return in;
+}//end overloading >> operator
+
+bool Directory :: operator < (Directory &rhs)
+{
+  //return the opposite result of if name and rhs.name is = or not
+  return !(strcmp(name, rhs.name) > 0);
+}//end operator <
+
+//overloading == operator
+bool Directory :: operator == (const Directory &rhs)
+{
+  //return if name and rhs.name =
+  return (strcmp(name, rhs.name) == 0);
+}//end == operator
+
+//read in data from directory.txt
+void Directory :: reconstructor(ifstream &in)
+{
+  while(!in.eof())//while not end of file, keep scanning
+  {
+    for(int track = 0; track < subN; track++)
+    {
+      //creat temp as new directory, it will create all sub directory and
+      //directory recursively 
+      temp = new Directory();
+      in >> *temp;
+      (*temp).previousDir = this;
+      (*temp).reconstructor(in);
+      subDir += temp;// add temp to the subdirectory linklist
+    }//end for
+    break;
+  }//end while
+}//end reconstructor
+
+//check if valid permission were entered
+//default paramater to tell if being called from umask or chmod
+void Directory :: changePermissions(char name1[80], char user[80] ,
+                                   int new_permission)
+{
+  //create new memory
+  temp = new Directory(name1);
+
+  //check if the directory trying to chmod to have to permission for the user
+  //to do so, if not permission denied
+  if(!(*this).validExecution(user, 0))
+  {
+    cout << "chmod: Permission denied" << endl;
+    return ;
+  }//end if
+  
+  //scan tho the directory
+  for(int i = 0; i < subN; i++)
+  {
+    if((*temp) == (*subDir[i]))//found match
+    {
+      //check valid change permission 
+      if(!(*subDir[i]).validExecution(user, 2))
+      {
+	cout << "chmod: Permission denied." << endl;
+	return ;
+      }//end if
+      //change the new permission to the directory
+      (*subDir[i]->mask).perm = new_permission;
+      (*subDir[i]->mask).update();
+      (*subDir[i]->time).updateTime();//apply new time
+      return ;
+    }//end if
+  }//end for
+  cout << "chmod: failed to get attributes of '" << name1
+       << "': No such file or directory" << endl;
+}//end change permission
+
+Directory* Directory :: validChange(char name1[80], char user[80])
+{
+  temp = new Directory(name1);
+  //if cd with ..
+  if(strcmp("..", name1) == 0)
+  {
+    if(previousDir == NULL)//if no previous directory
+    {
+      return this;
+    }//end if
+    else//else return the pervious directory
+    {
+      return (*previousDir).get();
+    }//end else
+  }//end if
+  else if(subN == 0)//if trying to cd into a directory that DNE
+  {
+    cout << name1 << ": no such file or directory" << endl;
+    return this;
+  }//end else if
+  else//look through the directory list, c if there any match
+  {
+    //check valid permission to take action
+    if(!((*this).validExecution(user, 0)))
+    {
+      cout << "cd : Permission denied." << endl;
+      return this;
+    }//end if
+    //scan through the sub directory
+    for(int i = 0; i < subN; i++)
+    {
+      if((*temp) == (*subDir[i]))//if found match
+      {
+        //check valid permission
+	if(!((*subDir[i]).validExecution(user, 1)))
+        {//if not
+	  cout << "cd : Permission denied" << endl;
+	  return this;
+	}//end if
+        return (*subDir[i]).get();
+        break;
+      }//end if
+      else//
+      { 
+      	if(i == subN - 1)//if no match directory, error message
+      	{
+         cout << name1 << ": no such file or directory." << endl;
+         return this;
+      	}//end if
+      }//end else
+    }//end for
+  }//else
+  return this;
+}//end validchange()
+
+bool Directory :: validCreate(char name1[80], char user[80], int mode)
+{
+  temp = new Directory(name1);
+  
+  //scan through sub directory
+  for(int i = 0; i < subN; i++)
+  {
+    if((*temp) == (*subDir[i]))
+    {
+      if(mode == 1)//permission with r-x, no permission to write
+      {
+        cout << "cp: cannot stat '" << name1 << "': No such file or directory" 
+	      << endl;
+      }//end if
+      else
+      {
+          cout << "mkdir: cannot create directory '" << name1
+               << "': File exists" << endl;
+      }//end else
+      
+      return false;
+    }//end if
+  }//end else if
+  if(!(*this).validExecution(user, 2)&&mode == 0)//error in prof code, change later
+  {
+    //permission with r-x
+    cout << ((mode == 1) ? "cp: " : "mkdir: ") << "Permission denied." << endl;
+    return false;
+  }//end if
+  return true;
+}//end ValidCreate()
+
+void Directory :: list(char command1[80], char user[80])
+{
+  if(!(*this).validExecution(user, 0))
+  {
+    //permission with r
+    cout << "ls: Permission denied" << endl;
+    return ;
+  }//end if
+  for(int i = 0; i <= subN - 1; i++)
+  {
+    if(strlen(command1) == 0)//if there no extra list option (-l)
+    {
+      cout << subDir[i]->name << " ";
+    }//end if
+    else if(strcmp(command1, "-l") == 0)// if -l included
+    {//list all permission, time, and name of the representing directory
+      (*subDir[i]->mask).printPermissions();
+      cout <<"     " << (*subDir[i]->mask).owner << " ";
+      (*(subDir[i])->time).printTime();
+      cout << " " << subDir[i]->name << endl;
+    }//end else if
+    else//if command entered incorrectly, error message
+    { 
+      cout << "usage: ls [-l]" << endl << command1;
+      return;
+    }//end else
+  }//end for
+  if(subN > 0 && strlen(command1) == 0)// if no sub directory
+  {
+    cout << endl;
+  }//end if
+}//end list()
+
+Directory* Directory :: get()
+{
+  return this;
+}//end get()
+
+//copy function recursively in copy constructor
+void Directory :: copy(char name1[80], char name2[80], char user[80])
+{
+  temp = new Directory(name1);
+  for(int i = 0; i < subN; i++)
+  {
+    if((*temp) == (*subDir[i]))//if found match directory in current
+    {
+      if((*subDir[i]).validExecution(user, 0))
+      {
+	//create new directory with the name provided
+	temp = new Directory(*subDir[i]);
+	strcpy((*temp).name, name2 ); //rename the new directory
+	strcpy((*temp->mask).owner, user) ;
+	subDir += temp;
+	subN++;
+	break;
+      }//end if
+      else 
+        cout << "cp : Permission denied." << endl;
+    }//end if
+  }//end for
+}//end copy()
+
+void Directory :: changeOwner(char newOwner[80], char dirIn[80])
+{
+  int track = 0;
+  char *dir = strtok(dirIn, " ");
+  while(dir)//while directory set
+  {
+    temp = new Directory(dir);
+    //scan tho all sub directory
+    for(int i = 0; i < subN && (*subDir[i])<(*temp); i++)
+    {
+      if((*temp) == (*subDir[i]))//if found match directory in current
+      {
+	(*subDir[i]->time).updateTime();
+	strcpy((*subDir[i]->mask).owner, newOwner);//change the owner to new owner
+	track = 1;//set track to set
+	break;
+      }//end if
+    }//end for
+    if(track == 0)//if no file were found
+    {
+      cout<< "chown: failed to get attribute of '" << dir
+	  << "' : No such file or directory" << endl;
+    }//end if
+    track = 0;//set track back to 0
+    dir = strtok(NULL, " ");//scan for next input, if there is/are andy
+  }//end while
+}//end changeOwner
+
+bool Directory:: validExecution(char user[80], int mode)
+{
+  (*mask).update();
+  //check if owner and user are =, if true return mask.o, else mask.u
+  //o = owner, u = user
+  int p = (strcmp(user,(*mask).owner) == 0) ? (*mask).o : (*mask).u;  
+  int track;
+  switch(mode)
+  {
+    case 0://check if permission with r
+      track = (p < 4) ? 1 : 0;
+      break;
+    case 1://check if permission with r and x
+      track = (p == 0 || p == 2) ? 1 : 0;
+      break;
+    case 2://check if permission with r and w
+      track = (p < 2) ? 1 : 0;
+      break;
+    default://default false, if none of above match
+      return false;
+      break;
+  }//end switch
+  return (track == 1)? true : false; //return if track is 1 true
+}//end validExecution
+
